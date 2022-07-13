@@ -2,7 +2,7 @@
 # Data Collection Script for Raspberry Pi
 ##########################################
 
-import time
+from datetime import datetime
 import board
 import busio
 import numpy as np
@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import io
 import socket
 from picamera import PiCamera
+import requests
 
 
 def encode_frame(frame):
@@ -78,22 +79,56 @@ mlx.refresh_rate = adafruit_mlx90640.RefreshRate.REFRESH_2_HZ # set refresh rate
 mlx_shape = (24,32)
 
 camera = PiCamera()
+camera.resolution = (32,24)
 camera.start_preview()
 
 server_addr = "192.168.10.43"
-clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 while(1):
-
     camera_data = []
     ir_data = []
+    gps_id = 0
 
     # Collect data
     while(len(camera_data) < num_pics and len(ir_data) < num_pics):
         curr_coord = get_curr_gps() # Current GPS position recieved over telemetary port from drone
-        if curr_coord in gps_coordinates:
-            camera_data.append("Take picture")
-            ir_data.append("take IR pic")
+        target_coord = gps_coordinates[gps_id]
 
-    # Poll Server to offload pictures
+        # Check to see if current position is within range of next waypoint
+        if abs(curr_coord[0] - target_coord[0]) < 1.5 and abs(curr_coord[1] - target_coord[1]) < 1.5:
+            try:
+                curr_time = datetime.now()
+                frame = np.zeros((24*32))
+                mlx.getFrame(frame)
+                curr_ir_data = (np.reshape(frame,mlx_shape))
+                ir_data.append((curr_ir_data, curr_coord, curr_time))
 
+                # Get image data as byte stream
+                curr_stream = io.BytesIO()
+                camera.capture(curr_stream, format="png")
+                curr_stream.seek(0)
+                img_data = bytearray()
+                img_data = curr_stream.read()
+                camera_data.append((img_data, curr_coord, curr_time))
+
+                # Get image data as numpy array
+                # output = np.empty((24, 32, 3), dtype=np.uint8)
+                # camera.capture(output, 'rgb')
+                # camera_data.append((output, curr_coord, curr_time))
+
+                gps_id += 1
+
+            except ValueError:
+                pass
+    
+    # Poll for network connection
+    while (1):
+        try:
+            repsonse = requests.get('http://google.com')
+            break
+        except Exception as e:
+            pass
+
+    clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    send(ir_data, clientSocket)
+    send(camera_data, clientSocket)

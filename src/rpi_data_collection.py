@@ -7,7 +7,6 @@ import board
 import busio
 import numpy as np
 import adafruit_mlx90640
-import matplotlib.pyplot as plt
 import io
 import socket
 from picamera import PiCamera
@@ -15,35 +14,31 @@ import requests
 
 
 def encode_frame(frame):
-
     f = io.BytesIO()
     np.savez(f, frame=frame)
     
     packet_size = len(f.getvalue())
-    size = '{}'.format(packet_size)
-    size = bytes(size.encode()) #get size first
-    
+    header = '{0}:'.format(packet_size)
+    header = bytes(header.encode())  # prepend length of array
+
     out = bytearray()
+    out += header
+
     f.seek(0)
-    out = f.read() #encode the frame
-    
-    return out, size
+    out += f.read()
+    return out
 
 def send(frame, socket):
     if not isinstance(frame, np.ndarray):
         raise TypeError("input frame is not a valid numpy array")
 
-    out, size = encode_frame(frame)   
-    print(out)
+    out = encode_frame(frame)
 
     try:
-        socket.send(size) #send size
-        socket.sendall(out) #send data
+        socket.sendall(out)
     except BrokenPipeError:
         print("connection broken")
         raise
-
-    print("frame sent of size {}".format(size))
 
 def load_gps(path):
     ''' Waypoint file format for parsing
@@ -79,18 +74,17 @@ mlx.refresh_rate = adafruit_mlx90640.RefreshRate.REFRESH_2_HZ # set refresh rate
 mlx_shape = (24,32)
 
 camera = PiCamera()
-camera.resolution = (32,24)
+camera.resolution = (720,480)
 camera.start_preview()
 
 server_addr = "192.168.10.43"
 
 while(1):
-    camera_data = []
-    ir_data = []
+    sensor_data = []
     gps_id = 0
 
     # Collect data
-    while(len(camera_data) < num_pics and len(ir_data) < num_pics):
+    while(len(sensor_data) < num_pics):
         curr_coord = get_curr_gps() # Current GPS position recieved over telemetary port from drone
         target_coord = gps_coordinates[gps_id]
 
@@ -100,35 +94,31 @@ while(1):
                 curr_time = datetime.now()
                 frame = np.zeros((24*32))
                 mlx.getFrame(frame)
-                curr_ir_data = (np.reshape(frame,mlx_shape))
-                ir_data.append((curr_ir_data, curr_coord, curr_time))
-
-                # Get image data as byte stream
-                curr_stream = io.BytesIO()
-                camera.capture(curr_stream, format="png")
-                curr_stream.seek(0)
-                img_data = bytearray()
-                img_data = curr_stream.read()
-                camera_data.append((img_data, curr_coord, curr_time))
+                ir_data = (np.reshape(frame,mlx_shape))
 
                 # Get image data as numpy array
-                # output = np.empty((24, 32, 3), dtype=np.uint8)
-                # camera.capture(output, 'rgb')
-                # camera_data.append((output, curr_coord, curr_time))
-
+                img_data = np.empty((480*720*3), dtype=np.uint8)
+                camera.capture(img_data, 'bgr')
+                img_data = np.reshape(img_data, (480,720,3))
+                
+                sensor_data.append((ir_data, img_data, curr_coord, curr_time))
                 gps_id += 1
 
             except ValueError:
                 pass
     
-    # Poll for network connection
+    # Poll for socket connection
+    clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     while (1):
         try:
-            repsonse = requests.get('http://google.com')
+            clientSocket.connect(server_addr, 2022)
             break
         except Exception as e:
             pass
 
-    clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    send(ir_data, clientSocket)
-    send(camera_data, clientSocket)
+    # Send sensor data to server
+    for frame in sensor_data:
+        send(frame, clientSocket)
+    
+    # Close socket connection
+    clientSocket.close()

@@ -64,7 +64,7 @@ def get_curr_gps():
 
 
 # Load GPS coordinates from mission planner.
-gps_path = "data\path_planning\path_test.waypoints"
+gps_path = "..\path_planning\path_test.waypoints"
 gps_coordinates = load_gps(gps_path)
 num_pics = len(gps_coordinates)
 

@@ -10,7 +10,7 @@ import adafruit_mlx90640
 import io
 import socket
 from picamera import PiCamera
-import requests
+import time
 
 
 def encode_frame(frame):
@@ -78,7 +78,6 @@ camera.resolution = (720,480)
 camera.start_preview()
 
 server_addr = "192.168.10.43"
-
 while(1):
     sensor_data = []
     gps_id = 0
@@ -87,25 +86,25 @@ while(1):
     while(len(sensor_data) < num_pics):
         curr_coord = get_curr_gps() # Current GPS position recieved over telemetary port from drone
         target_coord = gps_coordinates[gps_id]
-
+        time.sleep(5)
         # Check to see if current position is within range of next waypoint
-        if abs(curr_coord[0] - target_coord[0]) < 1.5 and abs(curr_coord[1] - target_coord[1]) < 1.5:
-            try:
-                curr_time = datetime.now()
-                frame = np.zeros((24*32))
-                mlx.getFrame(frame)
-                ir_data = (np.reshape(frame,mlx_shape))
+        # if abs(curr_coord[0] - target_coord[0]) < 1.5 and abs(curr_coord[1] - target_coord[1]) < 1.5:
+        try:
+            curr_time = datetime.now()
+            frame = np.zeros((24*32))
+            mlx.getFrame(frame)
+            ir_data = (np.reshape(frame,mlx_shape))
 
-                # Get image data as numpy array
-                img_data = np.empty((480*720*3), dtype=np.uint8)
-                camera.capture(img_data, 'bgr')
-                img_data = np.reshape(img_data, (480,720,3))
-                
-                sensor_data.append((ir_data, img_data, curr_coord, curr_time))
-                gps_id += 1
+            # Get image data as numpy array
+            img_data = np.empty((480*720*3), dtype=np.uint8)
+            camera.capture(img_data, 'bgr')
+            img_data = np.reshape(img_data, (480,720,3))
+            
+            sensor_data.append((ir_data, img_data, curr_coord, curr_time))
+            gps_id += 1
 
-            except ValueError:
-                pass
+        except ValueError:
+            pass
     
     # Poll for socket connection
     clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

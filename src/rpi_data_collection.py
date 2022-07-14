@@ -58,6 +58,7 @@ def load_gps(path):
 
     return gps_coord
 
+# Return np array
 def get_curr_gps():
     pass
 
@@ -90,7 +91,7 @@ while(1):
         # Check to see if current position is within range of next waypoint
         # if abs(curr_coord[0] - target_coord[0]) < 1.5 and abs(curr_coord[1] - target_coord[1]) < 1.5:
         try:
-            curr_time = datetime.now()
+            curr_time = np.array([datetime.now()])
             frame = np.zeros((24*32))
             mlx.getFrame(frame)
             ir_data = (np.reshape(frame,mlx_shape))
@@ -110,14 +111,15 @@ while(1):
     clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     while (1):
         try:
-            clientSocket.connect(server_addr, 2022)
+            clientSocket.connect((server_addr, 2022))
             break
         except Exception as e:
             pass
 
     # Send sensor data to server
     for frame in sensor_data:
-        send(frame, clientSocket)
+        for data in frame:
+            send(data, clientSocket)
     
     # Close socket connection
     clientSocket.close()

@@ -16,21 +16,20 @@ class DataUploader:
         self.client_conn = 0
         self.socket_buffer_size = 1024
         self.mlx_shape = (32,24)
-        self.count = 1
+        self.frameCount = 1
 
         self.frameBuffer = bytearray()
-
-        self.pw = "MySQL1738!"
-        self.create_SQL_connection("localhost", "root", self.pw)
-        self.startServer()
         self.states = ["ir","rgb","gps","time"]
         self.currState = 0
 
         self.allData = []
         self.tempList = []
 
-        while True:
-            self.receiveFrame()
+        self.pw = "MySQL1738!"
+        self.create_SQL_connection("localhost", "root", self.pw)
+        
+        self.startServer()     
+        self.acceptDroneConnections()
         
 
     def create_SQL_connection(self, host_name, user_name, user_password):
@@ -55,10 +54,17 @@ class DataUploader:
 
         self.main_socket.bind((host, port))
         self.main_socket.listen()
-        
-        print("waiting for a connection")
-        self.client_conn, self.client_addr = self.main_socket.accept()
-        print(f"connected to: {self.client_addr[0]}")
+
+    def acceptDroneConnections(self):
+        while True:
+            print("waiting for a connection")
+            self.client_conn, self.client_addr = self.main_socket.accept()
+            print(f"connected to: {self.client_addr[0]}")
+
+            while True:
+                self.receiveFrame()
+
+
 
     def receiveFrame(self):
         #print("receiving")
@@ -108,7 +114,7 @@ class DataUploader:
         #reshaped = np.reshape(frame, self.mlx_shape)
         #print(frame)
 
-        print(f"processed incoming frame #{self.count}")
+        print(f"processed incoming frame #{self.frameCount}")
         print(f"{self.states[self.currState]} frame received")
         print("")
 
@@ -121,7 +127,7 @@ class DataUploader:
             print("===============================================")
 
         self.currState = (self.currState + 1) % 4
-        self.count += 1
+        self.frameCount += 1
 
     def appendImageToDB(self):
         print("running sql query")

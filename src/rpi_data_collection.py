@@ -94,7 +94,6 @@ while(1):
         # if abs(curr_coord[0] - target_coord[0]) < 1.5 and abs(curr_coord[1] - target_coord[1]) < 1.5:
         try:
             curr_time = np.array([datetime.now()])
-            #curr_time = np.array([0,0])
             frame = np.zeros((24*32))
             #mlx.getFrame(frame)
             frame = np.random.uniform(-20.0, 200.0, 32*24)

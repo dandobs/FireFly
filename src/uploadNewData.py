@@ -18,6 +18,8 @@ class DataUploader:
         self.mlx_shape = (32,24)
         self.count = 1
 
+        self.frameBuffer = bytearray()
+
         self.pw = "MySQL1738!"
         self.create_SQL_connection("localhost", "root", self.pw)
         self.startServer()
@@ -28,7 +30,7 @@ class DataUploader:
         self.tempList = []
 
         while True:
-            self.receiveData()
+            self.receiveFrame()
         
 
     def create_SQL_connection(self, host_name, user_name, user_password):
@@ -58,55 +60,57 @@ class DataUploader:
         self.client_conn, self.client_addr = self.main_socket.accept()
         print(f"connected to: {self.client_addr[0]}")
 
-    def receiveData(self):
-        print("receiving")
-        dataEmpty = False
-
-        # receive packets until no more data is received
+    def receiveFrame(self):
+        #print("receiving")
+        bufferToProcess = None
+        length = None
+        
         while True:
-            length = None
-            frameBuffer = bytearray()
-            while True:
-                data = self.client_conn.recv(self.socket_buffer_size)
-                if len(data) == 0:
-                    dataEmpty = True
-                    break
-                #print(f"len of data: {len(data)}")
-                frameBuffer += data
-                if len(frameBuffer) == length:
-                    # if full frame received proceed to processing
-                    
-                    break
-                while True:
-                    if length is None:
-                        if b':' not in frameBuffer:
-                            break
-                        # remove the length bytes from the front of frameBuffer
-                        # leave any remaining bytes in the frameBuffer!
-                        length_str, _, frameBuffer = frameBuffer.partition(b':')
-                        length = int(length_str)
-                    if len(frameBuffer) < length:
-                        break
-                    # split off the full message from the remaining bytes
-                    # leave any remaining bytes in the frameBuffer!
-                    frameBuffer = frameBuffer[length:]
-                    length = None
-                    break
-            
-            if dataEmpty:
+            data = self.client_conn.recv(self.socket_buffer_size)
+            self.frameBuffer += data
+
+            if length and len(self.frameBuffer) >= length:
+                # if full frame received truncate and proceed to processing
+                bufferToProcess = self.frameBuffer[:length]
+                self.frameBuffer = self.frameBuffer[length:]
+                #print("received full frame... breaking out")
                 break
+            
+            if length is None:
+                # havent gotten a packet yet
+                if b':' in self.frameBuffer:
+                    # this packet is the first one in the msg
+                    # remove the length bytes from the front of frameBuffer
+                    # leave any remaining bytes in the frameBuffer!
+                    length_str, _, self.frameBuffer = self.frameBuffer.partition(b':')
+                    length = int(length_str)
+                    print(f"length of {self.states[self.currState]}: {length}")
+                    
+                    # the message is entirely in this packet, therefore cut off remaining bytes
+                    if len(self.frameBuffer) > length:
+                        # split off the full message from the remaining bytes
+                        # leave any remaining bytes in the frameBuffer!
+                        bufferToProcess = self.frameBuffer[:length]
+                        self.frameBuffer = self.frameBuffer[length:]
+                        self.length = None
+                        # break out of receiving loop and start processing
+                        #print("frame smaller than buffer")
+                        break
+                else:
+                    #print(len(self.frameBuffer))
+                    continue
 
-            frame = np.load(io.BytesIO(frameBuffer))['frame']
-            self.processData(frame)
-
+        #print(f"final length of frameBuffer: {len(bufferToProcess)}")
+        frame = np.load(io.BytesIO(bufferToProcess), allow_pickle=True)['frame']
+        self.processData(frame)
 
     def processData(self, frame): 
         #reshaped = np.reshape(frame, self.mlx_shape)
-        print(frame)
+        #print(frame)
 
         print(f"processed incoming frame #{self.count}")
         print(f"{self.states[self.currState]} frame received")
-        self.currState = (self.currState + 1) % 4
+        print("")
 
         self.tempList.append(frame)
 
@@ -114,7 +118,9 @@ class DataUploader:
             self.allData.append(self.tempList)
             self.tempList = []
             print(f"size of alldata : {len(self.allData)}")
+            print("===============================================")
 
+        self.currState = (self.currState + 1) % 4
         self.count += 1
 
     def appendImageToDB(self):

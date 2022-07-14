@@ -60,7 +60,7 @@ def load_gps(path):
 
 # Return np array
 def get_curr_gps():
-    pass
+    return np.array([0,0])
 
 
 # Load GPS coordinates from mission planner.

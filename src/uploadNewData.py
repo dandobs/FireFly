@@ -60,32 +60,23 @@ class DataUploader:
             print("waiting for a connection")
             self.client_conn, self.client_addr = self.main_socket.accept()
             print(f"connected to: {self.client_addr[0]}")
-
+            
             while True:
                 self.receiveFrame()
-                # if not self.dataReceived:
-                #     # start timer
-                #     timerStarted = True
-                #     timerStart = time.time()
-
-                # if timerStarted:
-                #     if self.dataReceived:
-                #         # restart timer
-                #         timerStarted = True
-                #     if time == 5:
-                #         # close socket
-                #         self.client_conn.close()
-                #         break
-
+                if self.closeSocketFlag:
+                    self.frameBuffer = bytearray()
+                    break
 
     def receiveFrame(self):
         bufferToProcess = None
         length = None
-        
+        self.closeSocketFlag = False
+
         while True:
-            #print("reading frame")
             data = self.client_conn.recv(self.socket_buffer_size)
-            self.dataReceived = len(data) > 0
+            if self.frameBuffer == b'e':
+                self.closeSocketFlag = True
+                return
 
             self.frameBuffer += data
 

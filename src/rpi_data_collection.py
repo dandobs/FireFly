@@ -101,7 +101,8 @@ class DataCollector:
             sensor_data = self.collectPhotosOnFlight()
             self.startClient()
             self.sendData(sensor_data)
-            #self.clientSocket.close()
+            self.clientSocket.send(b'e')
+            self.clientSocket.close()
             flightNum += 1
             time.sleep(10)
 
@@ -109,13 +110,13 @@ class DataCollector:
         print("collecting photos")
         sensor_data = []
         gps_id = 0
-        num = self.num_pics if not DEBUG else 3
+        num = self.num_pics if not DEBUG else 1
 
         # Collect data
         while(len(sensor_data) < num):
             curr_coord = self.get_curr_gps() # Current GPS position recieved over telemetary port from drone
             target_coord = self.gps_coordinates[gps_id]
-            time.sleep(5)
+            time.sleep(2)
             # Check to see if current position is within range of next waypoint
             # if abs(curr_coord[0] - target_coord[0]) < 1.5 and abs(curr_coord[1] - target_coord[1]) < 1.5:
             try:

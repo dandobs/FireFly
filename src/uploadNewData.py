@@ -63,16 +63,30 @@ class DataUploader:
 
             while True:
                 self.receiveFrame()
+                # if not self.dataReceived:
+                #     # start timer
+                #     timerStarted = True
+                #     timerStart = time.time()
 
+                # if timerStarted:
+                #     if self.dataReceived:
+                #         # restart timer
+                #         timerStarted = True
+                #     if time == 5:
+                #         # close socket
+                #         self.client_conn.close()
+                #         break
 
 
     def receiveFrame(self):
-        #print("receiving")
         bufferToProcess = None
         length = None
         
         while True:
+            #print("reading frame")
             data = self.client_conn.recv(self.socket_buffer_size)
+            self.dataReceived = len(data) > 0
+
             self.frameBuffer += data
 
             if length and len(self.frameBuffer) >= length:

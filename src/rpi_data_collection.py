@@ -8,7 +8,7 @@ import io
 import socket
 import time
 
-DEBUG = False
+DEBUG = True
 
 # imports for raspberry pi
 if not DEBUG:
@@ -21,7 +21,7 @@ class DataCollector:
 
     def __init__(self):
         # Load GPS coordinates from mission planner.
-        self.gps_path = "../path_plannin/path_test.waypoints"
+        self.gps_path = "..\path_planning\path_test.waypoints"
         self.gps_coordinates = self.load_gps(self.gps_path)
         self.num_pics = len(self.gps_coordinates)
 
@@ -95,18 +95,24 @@ class DataCollector:
         return np.array([0,0])
     
     def flightDataCollection(self):
+        flightNum = 1
         while(True):
-            sensor_data = self.collectPhotos()
+            print(f"flight #{flightNum} =============================================")
+            sensor_data = self.collectPhotosOnFlight()
             self.startClient()
             self.sendData(sensor_data)
-            self.clientSocket.close()
+            #self.clientSocket.close()
+            flightNum += 1
+            time.sleep(10)
 
-    def collectPhotos(self):
+    def collectPhotosOnFlight(self):
+        print("collecting photos")
         sensor_data = []
         gps_id = 0
+        num = self.num_pics if not DEBUG else 3
 
         # Collect data
-        while(len(sensor_data) < self.num_pics if not DEBUG else 3):
+        while(len(sensor_data) < num):
             curr_coord = self.get_curr_gps() # Current GPS position recieved over telemetary port from drone
             target_coord = self.gps_coordinates[gps_id]
             time.sleep(5)
@@ -155,3 +161,6 @@ class DataCollector:
             for i, data in enumerate(frame):
                 print(f"sent {i}")
                 self.send(data, self.clientSocket)
+
+
+dc = DataCollector()

@@ -7,6 +7,7 @@ import numpy as np
 import io
 import socket
 import time
+import asyncio
 
 DEBUG = False
 
@@ -16,18 +17,26 @@ if not DEBUG:
     import adafruit_mlx90640
     from picamera import PiCamera
     import board
+    from mavsdk import System
 
 class DataCollector:
 
     def __init__(self):
         # Load GPS coordinates from mission planner.
-        self.gps_path = "../path_plannin/path_test.waypoints"
+        if not DEBUG:
+            self.gps_path = "../path_planning/path_test.waypoints"
+        else:
+            self.gps_path = "..\path_planning\path_test.waypoints"
+        
         self.gps_coordinates = self.load_gps(self.gps_path)
         self.num_pics = len(self.gps_coordinates)
 
-        self.server_addr = "192.168.10.43"
-        if DEBUG:
-            self.server_addr = "127.0.0.1"
+        self.server_addr = "127.0.0.1"
+        if not DEBUG:
+            self.server_addr = "192.168.10.43"
+            self.drone = System()
+            # SERIAL PORT Format: serial://[path][:baudrate]
+            self.drone.connect(system_address="serial://COM14:115200")
 
         self.setupSensors()
         self.flightDataCollection()
@@ -44,6 +53,7 @@ class DataCollector:
             self.camera.start_preview()
             
         self.mlx_shape = (24,32)
+        self.camera_shape = (240,320,3)
 
     def encode_frame(self, frame):
         f = io.BytesIO()
@@ -92,7 +102,12 @@ class DataCollector:
         return gps_coord
 
     def get_curr_gps(self):
-        return np.array([0,0])
+        if DEBUG:
+            return np.array([0,0])
+        else:
+            for position in self.drone.telemetry.position():
+                return np.array([position.latitude_deg, position.longitude_deg])
+
     
     def flightDataCollection(self):
         while(True):
@@ -108,34 +123,35 @@ class DataCollector:
         # Collect data
         while(len(sensor_data) < self.num_pics if not DEBUG else 3):
             curr_coord = self.get_curr_gps() # Current GPS position recieved over telemetary port from drone
-            target_coord = self.gps_coordinates[gps_id]
-            time.sleep(5)
+            if DEBUG:
+                target_coord = [0,0]
+            else:
+                target_coord = self.gps_coordinates[gps_id]
+            
             # Check to see if current position is within range of next waypoint
-            # if abs(curr_coord[0] - target_coord[0]) < 1.5 and abs(curr_coord[1] - target_coord[1]) < 1.5:
-            try:
-                curr_time = np.array([datetime.now()])
-                frame = np.zeros((24*32))
-                
-                if DEBUG:
-                    frame = np.random.uniform(-20.0, 200.0, 32*24)
-                else:
-                    mlx.getFrame(frame)                    
+            if abs(curr_coord[0] - target_coord[0]) < 1.5 and abs(curr_coord[1] - target_coord[1]) < 1.5:
+                try:
+                    curr_time = np.array([datetime.now()])
+                    
+                    if DEBUG:
+                        frame = np.random.uniform(-20.0, 200.0, 32*24)
+                    else:
+                        frame = np.zeros((24*32))
+                        self.mlx.getFrame(frame)                    
 
-                ir_data = (np.reshape(frame, self.mlx_shape))
+                    if DEBUG:
+                        img_data = np.random.uniform(-20.0, 200.0, 320*240*3)
+                    else:
+                        img_data = np.empty((240*320*3), dtype=np.uint8)
+                        self.camera.capture(img_data, 'bgr')
+                    
+                    img_data = np.reshape(img_data, self.camera_shape)
+                    ir_data = np.reshape(frame, self.mlx_shape)
+                    sensor_data.append((ir_data, img_data, curr_coord, curr_time))
+                    gps_id += 1
 
-                # Get image data as numpy array
-                img_data = np.empty((240*320*3), dtype=np.uint8)
-
-                if DEBUG:
-                    img_data = np.reshape(img_data, (240,320,3))
-                else:
-                    camera.capture(img_data, 'bgr')
-                
-                sensor_data.append((ir_data, img_data, curr_coord, curr_time))
-                gps_id += 1
-
-            except ValueError:
-                pass
+                except ValueError:
+                    pass
 
         return sensor_data
 

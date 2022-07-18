@@ -174,19 +174,40 @@ dash_app.layout = serve_layout
 
 """
 TODO: 
+    - Generate testing coordinates for fires/waypoints + paths to fire dataset
+        - Select random points on map closeby and write them down
     - Set default map zoom upon website load to be around ontario/fire coordinates
 
-Callbacks needed:
-- coordinates of fires are plotted on the map
-- different colored coordinates of the waypoints are plotted on the map
-- marker_clicked -> IR and Optical Images are displayed on the left side of the screen
-    - Metadata of this fire is displayed in the bottom right of the screen
-    - Metadata includes:
-        - Date and Time
-        - Latitude and Longitude
-        - Fire Size
-        - Opened/Not Opened
-- Dismiss button, when clicked, update metadata, and issue update to DB
+Current bugs:
+    - Hover is broken, only works for waypoints <--- fix it!
+
+############### Callbacks needed (based on chronolgical flow) ###############:
+[DB QUERYING]:
+    - Upon website load the DB is queried for:
+        - Fire coordinates + metadata
+        - Waypoint coordinates
+        
+[MAPPING]:    
+    - Coordinates of fires are plotted on the map
+    - Different colored coordinates of the waypoints are plotted on the map
+    
+[INTERACTIVE MAP]:
+    - Fire Marker or Waypoint Marker Clicked
+    [PREVIEW]:
+        [DB QUERYING]:
+        -> Images and Metadata of the clicked fire are queried from the DB
+        -> IR and Optical Images are displayed on the left side of the screen
+        -> Metadata of this fire is displayed in the bottom right of the screen
+        -> Metadata includes:
+            - Date and Time
+            - Latitude and Longitude
+            - Fire Size
+            - Opened/Not Opened
+
+    -> If marker is for a fire: 
+        - Show dismiss button (if not already dismissed)
+        - When clicked
+        - Issue command to DB for updating metadata of the fire coordinate to be dismissed
 - """
 
 

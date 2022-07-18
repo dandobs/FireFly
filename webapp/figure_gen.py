@@ -2,6 +2,8 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
+from data_gen import get_coordinates
+
 
 def blankFig():
     fig = go.Figure(go.Scatter(x=[], y=[]))
@@ -17,26 +19,39 @@ def example_map():
     us_cities = pd.read_csv(
         "https://raw.githubusercontent.com/plotly/datasets/master/us-cities-top-1k.csv"
     )
-    waypoints = pd.read_csv(
-        "../path_planning/path_test.waypoints",
-        skiprows=1,
-        delim_whitespace=True,
-    )
-    waypoints = waypoints.iloc[:, 8:10]
-    waypoints.columns.values[0] = "lat"
-    waypoints.columns.values[1] = "lon"
+    waypoints, fire_coords = get_coordinates()
+
+    # Plot dataframes of fire and waypoints separately based on the value of the
+    # fire flag that has been set in its columns
     fig = px.scatter_mapbox(
         waypoints,
         lat="lat",
         lon="lon",
-        # hover_name="City",
-        # hover_data=["State", "Population"],
+        hover_name="fire",
+        hover_data=["fire"],
         color_discrete_sequence=["fuchsia"],
         zoom=3,
         height=300,
     )
+
+    fig.add_trace(
+        go.Scattermapbox(
+            lat=fire_coords["lat"],
+            lon=fire_coords["lon"],
+            mode="markers",
+            marker=go.scattermapbox.Marker(
+                size=15, color="rgb(255, 0, 0)", opacity=0.7
+            ),
+            # text=locations_name,
+            hoverinfo="text",
+        )
+    )
+
     fig.update_layout(
         # mapbox_style="white-bg",
+        autosize=True,
+        hovermode="closest",
+        showlegend=False,
         mapbox_style="dark",
         mapbox_accesstoken=token,
         mapbox_layers=[
@@ -61,3 +76,7 @@ def example_map():
     )
     fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
     return fig
+
+
+def gen_map(fire_coordinates, waypoint_coordinates):
+    pass

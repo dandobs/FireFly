@@ -17,7 +17,7 @@ if not DEBUG:
     import adafruit_mlx90640
     from picamera import PiCamera
     import board
-    from mavsdk import System
+    from dronekit import connect, VehicleMode
 
 class DataCollector:
 
@@ -34,9 +34,9 @@ class DataCollector:
         self.server_addr = "127.0.0.1"
         if not DEBUG:
             self.server_addr = "192.168.10.43"
-            self.drone = System()
-            # SERIAL PORT Format: serial://[path][:baudrate]
-            self.drone.connect(system_address="serial://COM14:115200")
+            # Serial port on rpi
+            connection_string = '/dev/ttyAMA0'
+            self.drone = connect(connection_string, wait_ready=True, baud=57600)
 
         self.setupSensors()
         self.flightDataCollection()
@@ -105,8 +105,7 @@ class DataCollector:
         if DEBUG:
             return np.array([0,0])
         else:
-            for position in self.drone.telemetry.position():
-                return np.array([position.latitude_deg, position.longitude_deg])
+            return [self.drone.location.global_frame.lat, self.drone.location.global_frame.lon]
 
     
     def flightDataCollection(self):

@@ -170,3 +170,7 @@ class DataCollector:
             for i, data in enumerate(frame):
                 print(f"sent {i}")
                 self.send(data, self.clientSocket)
+
+
+if __name__ == "__main__":
+    dc = DataCollector()

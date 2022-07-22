@@ -3,39 +3,35 @@ import pandas as pd
 from scipy import ndimage
 import matplotlib.pyplot as plt
 
-filename = "match_data/data9.csv"
-temperature_threshold = 36
 
-thermal_data = np.loadtxt(filename, delimiter=",")
-thermal_data[6][0] = (thermal_data[6][1] + thermal_data[5][0] + thermal_data[7][0]) / 3
-mlx_shape = (24, 32)  # mlx90640 shape
+def detect_fires(thermal_data):
 
-mlx_interp_val = 10  # interpolate # on each dimension
-mlx_interp_shape = (
-    mlx_shape[0] * mlx_interp_val,
-    mlx_shape[1] * mlx_interp_val,
-)  # new shape
+    # filename = "match_data/data9.csv"
+    # thermal_data = np.loadtxt(filename, delimiter=",")
+    temperature_threshold = 50
+    thermal_data[6][0] = (thermal_data[6][1] + thermal_data[5][0] + thermal_data[7][0]) / 3
+    mlx_shape = (24, 32)  # mlx90640 shape
 
-data_array = np.reshape(thermal_data, mlx_shape)  # reshape
-# data_array = np.fliplr()  # flip data
-data_array = np.flipud(data_array)  # mirror image
-data_array = ndimage.zoom(data_array, mlx_interp_val)  # interpolate
+    mlx_interp_val = 10  # interpolate # on each dimension
+    mlx_interp_shape = (mlx_shape[0] * mlx_interp_val,
+                        mlx_shape[1] * mlx_interp_val)  # new shape
 
-num_over_thresh = np.count_nonzero(data_array > temperature_threshold)
-print("num_over_thresh: ", num_over_thresh)
-if num_over_thresh:
-    print("fire detected! :(")
-else:
-    print("no fire detected :)")
+    data_array = np.reshape(thermal_data, mlx_shape)  # reshape
+    # data_array = np.fliplr()  # flip data
+    data_array = np.flipud(data_array)  # mirror image
+    data_array = ndimage.zoom(data_array, mlx_interp_val)  # interpolate
 
-plt.imshow(
-    data_array,
-    interpolation="none",
-    cmap=plt.cm.bwr,
-    vmin=np.min(data_array),
-    vmax=np.max(data_array),
-)
+    num_over_thresh = np.count_nonzero(data_array > temperature_threshold)
+    return num_over_thresh
 
-plt.colorbar()  # setup colorbar
-# plt.set_label("Temperature [$^{\circ}$C]", fontsize=14)  # colorbar label
-plt.show()
+    # Uncomment if you want to plot IR data
+    # plt.imshow(
+    #     data_array,
+    #     interpolation="none",
+    #     cmap=plt.cm.bwr,
+    #     vmin=np.min(data_array),
+    #     vmax=np.max(data_array),
+    # )
+    # plt.colorbar()  # setup colorbar
+    # # plt.set_label("Temperature [$^{\circ}$C]", fontsize=14)  # colorbar label
+    # plt.show()

@@ -2,8 +2,10 @@ import dash
 import flask
 from dash import html, dcc, no_update
 import dash_bootstrap_components as dbc
+from dash.dependencies import Input, Output, State
 
 from figure_gen import blankFig, example_map
+from component_builder import gen_img_uri, empty_contained_img
 
 ################################################################################
 """ Initialize Flask Server and Dash App: """
@@ -42,25 +44,25 @@ title = dbc.Card(
 )
 
 # Map
-graph_with_loading_animation = dcc.Loading(
-    children=[
-        dcc.Graph(
-            id="main_graph",
-            clear_on_unhover=True,
-            figure=example_map(),
-            loading_state={"is_loading": False},
-            style={"height": "70vh"},
-        )
-    ],
-    type="graph",
+graph_with_loading_animation = dcc.Graph(
+    id="main_map",
+    clear_on_unhover=True,
+    figure=example_map(),
+    loading_state={"is_loading": False},
+    style={"height": "70vh"},
 )
+
+optical_preview = empty_contained_img(id="optical_preview")
+ir_preview = empty_contained_img(id="ir_preview")
+
+
 ################################################################################
 """ Dash UI Layout: """
 ################################################################################
 def serve_layout():
     return dbc.Container(
         [
-            horz_line,
+            # horz_line,
             dbc.Row(
                 [
                     dbc.Col(
@@ -68,43 +70,28 @@ def serve_layout():
                             [
                                 dbc.Row(
                                     children=[
-                                        dbc.Row(title),
-                                        # dbc.Row(horz_line),
-                                        # dbc.Row(file_info),
-                                        # dbc.Row(data_info),
-                                        dbc.Row(
-                                            [
-                                                # This component is verbosely placed in layout as it
-                                                # requires session_id to be dynamically generated
-                                                dbc.Col([]),
-                                            ]
-                                        ),
-                                        dbc.Col(
-                                            [
-                                                # controls_title,
-                                                # dbc.Row(n_neighbors_slider),
-                                                # dbc.Row(min_dist_slider),
-                                                # horz_line,
-                                                # dbc.Row(min_cluster_size_slider),
-                                                # dbc.Row(min_samples_slider),
-                                            ]
-                                        ),
-                                        horz_line,
-                                        dbc.Row(
-                                            # [card_3D_buttons],
-                                            # justify="center",
-                                            # align="center",
-                                        ),
+                                        title,
                                     ],
+                                    justify="center",
+                                    align="center",
+                                ),
+                                dbc.Row(
+                                    [optical_preview],
+                                    justify="center",
+                                    align="center",
+                                ),
+                                dbc.Row(
+                                    [ir_preview],
                                     justify="center",
                                     align="center",
                                 ),
                             ],
                             body=True,
-                            style={"height": "124vh"},
+                            style={"height": "70vh"},
                         ),
                         md=5,
-                        align="center",
+                        align="start",
+                        style={"padding-top": "1vh"},
                     ),
                     dbc.Col(
                         [
@@ -112,56 +99,32 @@ def serve_layout():
                             dbc.Row(
                                 children=[
                                     graph_with_loading_animation,
-                                    dcc.Tooltip(
-                                        id="main_graph_tooltip", direction="right"
-                                    ),
-                                    dcc.Download(id="main_graph_download"),
                                 ],
                                 style={"height": "70vh"},
                             ),
-                            horz_line,
-                            dbc.Row(
-                                [
-                                    # 2D Graph and its components
-                                    dbc.Col(
-                                        # children=[
-                                        #     graph_2D,
-                                        #     dcc.Tooltip(
-                                        #         id="graph_2D_tooltip",
-                                        #         direction="right",
-                                        #     ),
-                                        #     dcc.Download(id="graph_2D_download"),
-                                        #     horz_line,
-                                        #     # Tabbed card for preview and search here
-                                        #     dbc.Row(
-                                        #         children=(
-                                        #             dbc.Col(
-                                        #                 children=[
-                                        #                     preview_and_search_card
-                                        #                 ],
-                                        #                 width="auto",
-                                        #                 md=12,
-                                        #             ),
-                                        #         ),
-                                        #         justify="center",
-                                        #         align="center",
-                                        #     ),
-                                        #     horz_line,
-                                        #     # content will be rendered in this element
-                                        #     html.Div(id="page-content"),
-                                        # ],
-                                    ),
-                                ],
-                                style={"height": "50vh"},
-                                justify="center",
-                                align="start",
-                            ),
+                            # horz_line,
                         ],
                         md=7,
+                        style={"padding-top": "1vh"},
                     ),
                 ],
                 justify="center",
-                align="center",
+                align="start",
+            ),
+            dbc.Row(
+                dbc.Card(
+                    [
+                        dbc.Row(
+                            children=[
+                                "Metadata",
+                            ],
+                            justify="left",
+                            align="center",
+                        ),
+                    ],
+                    body=True,
+                ),
+                style={"height": "29vh", "padding": "1vh"},
             ),
         ],
         fluid=True,
@@ -177,9 +140,9 @@ TODO:
     - Generate testing coordinates for fires/waypoints + paths to fire dataset
         - Select random points on map closeby and write them down
     - Set default map zoom upon website load to be around ontario/fire coordinates
+    - add refresh button
 
 Current bugs:
-    - Hover is broken, only works for waypoints <--- fix it!
 
 ############### Callbacks needed (based on chronolgical flow) ###############:
 [DB QUERYING]:
@@ -209,6 +172,35 @@ Current bugs:
         - When clicked
         - Issue command to DB for updating metadata of the fire coordinate to be dismissed
 - """
+
+########################################################################
+""" [CALLBACK]: Click To Preview Fire: """
+########################################################################
+@dash_app.callback(
+    Output("optical_preview", "src"),
+    Input("main_map", "clickData"),
+    prevent_initial_call=True,
+)
+def func(clickData):
+    # print("hi")
+    if clickData:
+        clicked_point = clickData["points"][0]
+        # clickData format depends on which trace it came from
+        if type(clicked_point["customdata"]) == list:
+            clicked_point_customdata = clicked_point["customdata"][0]
+        else:
+            clicked_point_customdata = clicked_point["customdata"]
+        path_idx = (clicked_point_customdata % 10) + 1
+        print(f"Index: {clicked_point_customdata}")
+        # generate Optical file path using clicked point index and uri
+        optical_img_path = f"../data/match_data/picture{path_idx}.png"
+        optical_img_uri = gen_img_uri(clicked_point_customdata, optical_img_path)
+        # generate IR file path using clicked point index and uri
+        ir_img_path = f"../data/match_data/data{path_idx}.csv"
+
+        return optical_img_uri
+    else:
+        return no_update
 
 
 ########################################################################

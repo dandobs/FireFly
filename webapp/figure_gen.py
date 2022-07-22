@@ -29,6 +29,7 @@ def example_map():
         lon="lon",
         hover_name="fire",
         hover_data=["fire"],
+        custom_data=["index"],
         color_discrete_sequence=["fuchsia"],
         zoom=3,
         height=300,
@@ -38,12 +39,13 @@ def example_map():
         go.Scattermapbox(
             lat=fire_coords["lat"],
             lon=fire_coords["lon"],
+            customdata=fire_coords["index"],
             mode="markers",
             marker=go.scattermapbox.Marker(
                 size=15, color="rgb(255, 0, 0)", opacity=0.7
             ),
             # text=locations_name,
-            hoverinfo="text",
+            hoverinfo="all",
         )
     )
 
@@ -54,25 +56,25 @@ def example_map():
         showlegend=False,
         mapbox_style="dark",
         mapbox_accesstoken=token,
-        mapbox_layers=[
-            {
-                "below": "traces",
-                "sourcetype": "raster",
-                "sourceattribution": "United States Geological Survey",
-                "source": [
-                    "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}"
-                ],
-            },
-            {
-                "sourcetype": "raster",
-                "sourceattribution": "Government of Canada",
-                "source": [
-                    """https://geo.weather.gc.ca/geomet/?
-                    SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX={bbox-epsg-3857}&CRS=EPSG:3857
-                    &WIDTH=1000&HEIGHT=1000&LAYERS=RADAR_1KM_RDBR&TILED=true&FORMAT=image/png"""
-                ],
-            },
-        ],
+        # mapbox_layers=[
+        #     {
+        #         "below": "traces",
+        #         "sourcetype": "raster",
+        #         "sourceattribution": "United States Geological Survey",
+        #         "source": [
+        #             "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}"
+        #         ],
+        #     },
+        #     {
+        #         "sourcetype": "raster",
+        #         "sourceattribution": "Government of Canada",
+        #         "source": [
+        #             """https://geo.weather.gc.ca/geomet/?
+        #             SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX={bbox-epsg-3857}&CRS=EPSG:3857
+        #             &WIDTH=1000&HEIGHT=1000&LAYERS=RADAR_1KM_RDBR&TILED=true&FORMAT=image/png"""
+        #         ],
+        #     },
+        # ],
     )
     fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
     return fig

@@ -2,7 +2,7 @@ from flask import Flask
 import json
 from flask import request
 
-from db_util import create_db_connection, execute_query, read_query
+from db_util import create_db_connection, execute_query, read_query, getFlightNum
 
 """
 Hotspot statuses
@@ -12,50 +12,39 @@ Hotspot statuses
 3: dismissed
 """
 
-pw = "MySQL1738!"
-sqlConn = create_db_connection("localhost", "root", pw, "firefly")
+pw = "Fire2022!"
+sqlConn = create_db_connection("localhost", "root", pw, "firefly_db")
 statuses = ["not viewed", "viewed", "attending", "dismissed"]
 app = Flask(__name__)
 app.run()
 
 
-@app.route("/updateStatus", methods=["POST"])
-def updateHotspotStatus():
-    status = request.json.get("status")
-    id = request.json.get("id")
-
-    if status < 0 or status > 3:
-        print("ERROR: INVALID STATUS PROVIDED!!!")
-        return -1
-
-    query_setViewed = f"UPDATE hotspots SET 'status'={status} WHERE hotspotID={id};"
-    execute_query(sqlConn, query_setViewed)
-
-    print(f"set hotspot {id} status to '{statuses[status]}'")
-    return 0
-
-
 @app.route("/getAllImages", methods=["GET"])
 def getAllImages():
     print("retrieving all images")
-    query_getAllHSdata = f"SELECT *, locations.long, locations.lat FROM hotspots INNER JOIN locations ON hotspots.locID = locations.locID WHERE hotspots.status != 3;"
-    result = read_query(sqlConn, query_getAllHSdata)
+    lastFlightNum = getFlightNum(sqlConn)
 
-    if not result:
-        return -1
+    query = """SELECT image_records.locID, 
+                image_records.flightNum, 
+                image_records.date_time, 
+                image_records.irImagePath, 
+                rgbImagePath, 
+                locations.lon, 
+                locations.lat,
+                hotspots.size
+                FROM image_records
+                INNER JOIN locations 
+                ON image_records.locID = locations.locID
+                INNER JOIN hotspots
+                ON image_records.locID = hotspots.locID
+                WHERE image_records.flightNum = %s;"""
+    lastFlightNum = 1
+    params = [lastFlightNum]
+    result = read_query(sqlConn, query, params, as_json=True)
 
-    # make result readable
-    return result
+    # convert image paths to actual byte data
+
+    return result if result else -1
 
 
-@app.route("/getAllHotspots", methods=["GET"])
-def getAllHotspots():
-    print("retrieving all hotspots data")
-    query_getAllHSdata = f"SELECT *, locations.long, locations.lat FROM hotspots INNER JOIN locations ON hotspots.locID = locations.locID WHERE hotspots.status != 3;"
-    result = read_query(sqlConn, query_getAllHSdata)
-
-    if not result:
-        return -1
-
-    # make result readable
-    return result
+# getAllImages()

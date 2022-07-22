@@ -1,6 +1,8 @@
 import mysql.connector
 from mysql.connector import Error
 import io
+import json
+from datetime import date, datetime
 
 
 def create_db_connection(host_name, user_name, user_password, db_name):
@@ -26,21 +28,44 @@ def execute_query(connection, query, params=()):
         print(f"Error: '{err}'")
 
 
-def read_query(connection, query, params=()):
+def read_query(connection, query, params=(), as_json=False):
     cursor = connection.cursor()
     result = None
     try:
         cursor.execute(query, params)
-        result = cursor.fetchall()
+        if as_json:
+            return getJson(cursor)
+        else:
+            result = cursor.fetchall()
+
         return result
     except Error as err:
         print(f"Error: '{err}'")
 
 
-def getFlightNum(self):
+def getJson(cursor):
+    row_headers = [x[0] for x in cursor.description]  # this will extract row headers
+    rv = cursor.fetchall()
+    json_data = []
+    for result in rv:
+        json_data.append(dict(zip(row_headers, result)))
+    with open("data.json", "w") as f:
+        json.dump(json_data, f, default=json_serial)
+    return json.dumps(json_data, default=json_serial)
+
+
+def json_serial(obj):
+    """JSON serializer for objects not serializable by default json code"""
+
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    raise TypeError("Type %s not serializable" % type(obj))
+
+
+def getFlightNum(connection):
     query = "SELECT max(flightNum) from image_records;"
-    res = read_query(self.sqlConn, query)
-    if res:
+    res = read_query(connection, query)
+    if len(res) == 0:
         return res[0][0]
     else:
         return 1

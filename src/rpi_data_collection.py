@@ -110,6 +110,7 @@ class DataCollector:
             self.clientSocket.send(b"e")
             self.clientSocket.close()
             flightNum += 1
+            # DEBUGGING - REMOVE BREAK
             if flightNum > 1:
                 break
             time.sleep(5)

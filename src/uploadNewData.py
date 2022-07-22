@@ -1,6 +1,4 @@
-from re import A
-import mysql.connector
-from mysql.connector import Error
+import re
 import pandas as pd
 import socket
 import numpy as np
@@ -10,6 +8,9 @@ import io
 from PIL import Image
 import datetime
 import os
+
+from db_util import create_db_connection, execute_query, read_query
+import const
 
 
 class DataUploader:
@@ -33,8 +34,8 @@ class DataUploader:
         self.rgb_folder_path = "..\server_hd\rgb_images"
         self.ir_folder_path = "..\server_hd\ir_images"
 
-        self.pw = "MySQL1738!"
-        self.sqlConn = create_db_connection("localhost", "root", self.pw, "firefly")
+        self.pw = "Fire2022!"
+        self.sqlConn = create_db_connection("localhost", "root", self.pw, "firefly_db")
 
         self.startServer()
         self.acceptDroneConnections()
@@ -62,6 +63,8 @@ class DataUploader:
                     break
 
             acceptedCount += 1
+
+            # DEBUGING - REMOVE BREAK
             if acceptedCount > 1:
                 break
 
@@ -145,7 +148,16 @@ class DataUploader:
         ir_file_path = self.saveArrToPNG(irRaw, gps_time_part, type="ir")
         rgb_file_path = self.saveArrToPNG(rgbRaw, gps_time_part, type="rgb")
 
-        self.appendEntryToDB(lon, lat, datetime_object, ir_file_path, rgb_file_path)
+        size = -1
+
+        self.appendEntryToDB(
+            lon.astype(float),
+            lat.astype(float),
+            datetime_object,
+            str(ir_file_path),
+            str(rgb_file_path),
+            size,
+        )
 
     def saveArrToPNG(self, rawData, extension, type):
         file_name = f"{type}_{extension}.png"
@@ -155,59 +167,37 @@ class DataUploader:
         print(f"saved {type} as png")
         return file_path
 
-    def appendEntryToDB(self, lon, lat, date, ir_path, rgb_path):
+    def appendEntryToDB(self, lon, lat, date, ir_path, rgb_path, size=-1):
         print("adding entry to db")
 
         # check if location exists in locations table
-        query_checkLoc = (
-            f"SELECT locID FROM locations WHERE lon = {lon} and lat = {lat};"
-        )
-        result = read_query(self.sqlConn, query_checkLoc)
+        query_checkLoc = "SELECT locID FROM locations WHERE lon = %s and lat = %s;"
+        params_checkLoc = (lon, lat)
+        result = read_query(self.sqlConn, query_checkLoc, params_checkLoc)
+
+        # if location does not exist
         if not result:
             # make a location record
-            query_addLoc = f"INSERT INTO locations (lon, lat) VALUES ({lon}, {lat});"
-            execute_query(self.sqlConn, query_addLoc)
-            result = read_query(self.sqlConn, query_checkLoc)
+            query_addLoc = "INSERT INTO locations (lon, lat) VALUES (%s, %s);"
+            params_addLoc = (lon, lat)
+            execute_query(self.sqlConn, query_addLoc, params_addLoc)
+            result = read_query(self.sqlConn, query_checkLoc, params_checkLoc)
 
         locID = result[0][0]
 
-        query = f"INSERT INTO image_records (locID, datetime, irImagePath, rgbImagePath) VALUES ({locID}, {date}, {ir_path}, {rgb_path});"
-        print(query)
-        execute_query(self.sqlConn, query)
+        query_addImageRecord = "INSERT INTO image_records (locID, date_time, irImagePath, rgbImagePath) VALUES (%s, %s, %s, %s);"
+        params_addImageRecord = (locID, date, ir_path, rgb_path)
+        execute_query(self.sqlConn, query_addImageRecord, params_addImageRecord)
 
-
-def create_db_connection(host_name, user_name, user_password, db_name):
-    connection = None
-    try:
-        connection = mysql.connector.connect(
-            host=host_name, user=user_name, passwd=user_password, database=db_name
-        )
-        print("MySQL Database connection successful")
-    except Error as err:
-        print(f"Error: '{err}'")
-
-    return connection
-
-
-def execute_query(connection, query):
-    cursor = connection.cursor()
-    try:
-        cursor.execute(query)
-        connection.commit()
-        print("Query successful")
-    except Error as err:
-        print(f"Error: '{err}'")
-
-
-def read_query(connection, query):
-    cursor = connection.cursor()
-    result = None
-    try:
-        cursor.execute(query)
-        result = cursor.fetchall()
-        return result
-    except Error as err:
-        print(f"Error: '{err}'")
+        # if image contains a hotspot record a hotspot
+        if size > 0:
+            query_addHS = "INSERT INTO hotspots (locID, size, hotspot_status) VALUES (%s, %s, %s);"
+            params_addHS = (locID, size, 0)
+            execute_query(self.sqlConn, query_addHS, params_addHS)
 
 
 d1 = DataUploader()
+
+
+def umarScriptFunction():
+    return -1

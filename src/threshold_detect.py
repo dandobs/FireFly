@@ -5,9 +5,6 @@ import matplotlib.pyplot as plt
 
 
 def detect_fires(thermal_data):
-
-    # filename = "match_data/data9.csv"
-    # thermal_data = np.loadtxt(filename, delimiter=",")
     temperature_threshold = 50
     thermal_data[6][0] = (thermal_data[6][1] + thermal_data[5][0] + thermal_data[7][0]) / 3
     mlx_shape = (24, 32)  # mlx90640 shape

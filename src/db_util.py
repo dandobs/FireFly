@@ -16,7 +16,7 @@ def create_db_connection(host_name, user_name, user_password, db_name):
     return connection
 
 
-def execute_query(connection, query, params):
+def execute_query(connection, query, params=()):
     cursor = connection.cursor()
     try:
         cursor.execute(query, params)
@@ -26,7 +26,7 @@ def execute_query(connection, query, params):
         print(f"Error: '{err}'")
 
 
-def read_query(connection, query, params):
+def read_query(connection, query, params=()):
     cursor = connection.cursor()
     result = None
     try:
@@ -35,3 +35,12 @@ def read_query(connection, query, params):
         return result
     except Error as err:
         print(f"Error: '{err}'")
+
+
+def getFlightNum(self):
+    query = "SELECT max(flightNum) from image_records;"
+    res = read_query(self.sqlConn, query)
+    if res:
+        return res[0][0]
+    else:
+        return 1

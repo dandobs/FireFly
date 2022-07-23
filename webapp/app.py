@@ -4,14 +4,14 @@ from dash import html, dcc, no_update
 import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State
 
-from figure_gen import blankFig, example_map
-from component_builder import gen_img_uri, empty_contained_img
+from front_end import app_frontEnd
 
 ################################################################################
 """ Initialize Flask Server and Dash App: """
 ################################################################################
 
 app = flask.Flask(__name__)
+frontend = app_frontEnd()
 
 
 # Define dash app
@@ -47,13 +47,14 @@ title = dbc.Card(
 graph_with_loading_animation = dcc.Graph(
     id="main_map",
     clear_on_unhover=True,
-    figure=example_map(),
+    figure=frontend.refresh_map(),
     loading_state={"is_loading": False},
     style={"height": "70vh"},
 )
 
-optical_preview = empty_contained_img(id="optical_preview")
-ir_preview = empty_contained_img(id="ir_preview")
+# IR and Camera images
+optical_preview = frontend.empty_contained_img(id="optical_preview")
+ir_preview = frontend.empty_contained_img(id="ir_preview")
 
 
 ################################################################################
@@ -71,6 +72,7 @@ def serve_layout():
                                 dbc.Row(
                                     children=[
                                         title,
+                                        dbc.Button("Refresh", id = "refresh-btn", n_clicks=0, color="secondary")
                                     ],
                                     justify="center",
                                     align="center",
@@ -91,15 +93,13 @@ def serve_layout():
                         ),
                         md=5,
                         align="start",
-                        style={"padding-top": "1vh"},
+                        style={"padding-top": "1vh", 'overflow-y': 'scroll'},
                     ),
                     dbc.Col(
                         [
                             # 3D Graph and its components
                             dbc.Row(
-                                children=[
-                                    graph_with_loading_animation,
-                                ],
+                                [graph_with_loading_animation],
                                 style={"height": "70vh"},
                             ),
                             # horz_line,
@@ -120,6 +120,7 @@ def serve_layout():
                             ],
                             justify="left",
                             align="center",
+                            id= "Metadata"
                         ),
                     ],
                     body=True,
@@ -134,6 +135,40 @@ def serve_layout():
 # Dynamically serve layout for each user that connects
 dash_app.layout = serve_layout
 
+########################################################################
+""" [CALLBACK]: Click To Preview Fire: """
+########################################################################
+@dash_app.callback(
+    Output("optical_preview", "src"),
+    Output("ir_preview", "src"),
+    Output("Metadata", "children"),
+    Input("main_map", "clickData"),
+    prevent_initial_call=True,
+)
+def func(clickData):
+
+    if clickData:
+        clicked_point = clickData["points"][0]
+        if type(clicked_point["customdata"]) == list:
+            locID = clicked_point["customdata"][0]
+        else:
+            locID = clicked_point["customdata"]
+        return frontend.get_point_data(locID)
+
+@dash_app.callback(
+    Output("main_map", "figure"),
+    Input("refresh-btn", "n_clicks"),
+    prevent_initial_call=True,
+)
+def on_button_click(n):
+    return frontend.refresh_map()
+
+
+########################################################################
+""" Run server """
+########################################################################
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=80)
 
 """
 TODO: 
@@ -172,39 +207,3 @@ Current bugs:
         - When clicked
         - Issue command to DB for updating metadata of the fire coordinate to be dismissed
 - """
-
-########################################################################
-""" [CALLBACK]: Click To Preview Fire: """
-########################################################################
-@dash_app.callback(
-    Output("optical_preview", "src"),
-    Input("main_map", "clickData"),
-    prevent_initial_call=True,
-)
-def func(clickData):
-    # print("hi")
-    if clickData:
-        clicked_point = clickData["points"][0]
-        # clickData format depends on which trace it came from
-        if type(clicked_point["customdata"]) == list:
-            clicked_point_customdata = clicked_point["customdata"][0]
-        else:
-            clicked_point_customdata = clicked_point["customdata"]
-        path_idx = (clicked_point_customdata % 10) + 1
-        print(f"Index: {clicked_point_customdata}")
-        # generate Optical file path using clicked point index and uri
-        optical_img_path = f"../data/match_data/picture{path_idx}.png"
-        optical_img_uri = gen_img_uri(clicked_point_customdata, optical_img_path)
-        # generate IR file path using clicked point index and uri
-        ir_img_path = f"../data/match_data/data{path_idx}.csv"
-
-        return optical_img_uri
-    else:
-        return no_update
-
-
-########################################################################
-""" Run server """
-########################################################################
-if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=80)

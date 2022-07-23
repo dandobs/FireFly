@@ -49,15 +49,13 @@ def getJson(cursor):
     json_data = []
     for result in rv:
         json_data.append(dict(zip(row_headers, result)))
-    with open("data.json", "w") as f:
-        json.dump(json_data, f, default=json_serial)
-    return json.dumps(json_data, default=json_serial)
+    return json_data
 
 
 def json_serial(obj):
     """JSON serializer for objects not serializable by default json code"""
 
-    if isinstance(obj, (datetime, date)):
+    if isinstance(obj, (datetime, date, bytes)):
         return obj.isoformat()
     raise TypeError("Type %s not serializable" % type(obj))
 

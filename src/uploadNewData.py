@@ -9,7 +9,8 @@ from PIL import Image
 import datetime
 import os
 
-from db_util import create_db_connection, execute_query, read_query
+from db_util import create_db_connection, execute_query, read_query, getFlightNum
+from threshold_detect import detect_fires
 import const
 
 
@@ -36,6 +37,8 @@ class DataUploader:
 
         self.pw = "Fire2022!"
         self.sqlConn = create_db_connection("localhost", "root", self.pw, "firefly_db")
+        self.flightNum = getFlightNum(self.sqlConn)
+        print(f"flight num: {self.flightNum}")
 
         self.startServer()
         self.acceptDroneConnections()
@@ -65,7 +68,7 @@ class DataUploader:
             acceptedCount += 1
 
             # DEBUGING - REMOVE BREAK
-            if acceptedCount > 1:
+            if acceptedCount > 5:
                 break
 
     def receiveFrame(self):
@@ -77,6 +80,7 @@ class DataUploader:
             data = self.client_conn.recv(self.socket_buffer_size)
             if self.frameBuffer == b"e":
                 self.closeSocketFlag = True
+                self.flightNum += 1
                 return
 
             self.frameBuffer += data
@@ -148,7 +152,7 @@ class DataUploader:
         ir_file_path = self.saveArrToPNG(irRaw, gps_time_part, type="ir")
         rgb_file_path = self.saveArrToPNG(rgbRaw, gps_time_part, type="rgb")
 
-        size = -1
+        size = detect_fires(irRaw)
 
         self.appendEntryToDB(
             lon.astype(float),
@@ -185,19 +189,16 @@ class DataUploader:
 
         locID = result[0][0]
 
-        query_addImageRecord = "INSERT INTO image_records (locID, date_time, irImagePath, rgbImagePath) VALUES (%s, %s, %s, %s);"
-        params_addImageRecord = (locID, date, ir_path, rgb_path)
+        # add image record to db
+        query_addImageRecord = "INSERT INTO image_records (locID, flightNum, date_time, irImagePath, rgbImagePath) VALUES (%s, %s, %s, %s, %s);"
+        params_addImageRecord = (locID, self.flightNum, date, ir_path, rgb_path)
         execute_query(self.sqlConn, query_addImageRecord, params_addImageRecord)
 
         # if image contains a hotspot record a hotspot
         if size > 0:
-            query_addHS = "INSERT INTO hotspots (locID, size, hotspot_status) VALUES (%s, %s, %s);"
-            params_addHS = (locID, size, 0)
+            query_addHS = "INSERT INTO hotspots (locID, flightNum, size, hotspot_status) VALUES (%s, %s, %s, %s);"
+            params_addHS = (locID, self.flightNum, size, 0)
             execute_query(self.sqlConn, query_addHS, params_addHS)
 
 
 d1 = DataUploader()
-
-
-def umarScriptFunction():
-    return -1

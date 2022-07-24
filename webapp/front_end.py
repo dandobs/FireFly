@@ -77,7 +77,7 @@ class app_frontEnd():
         allimgs = res.json()["Data"]
         df = pd.DataFrame.from_dict(allimgs)
         df['fire'] = np.where(df['size'] > -1, True, False)
-        coords = df.iloc[:, [0,5,6,8]]
+        coords = df.iloc[:, [0,3,4,8]]
         self.fire_coords = coords[coords["fire"] == True]
         self.waypoints = coords
 
@@ -96,8 +96,8 @@ class app_frontEnd():
         Returns:
             img_uri (str): str containing image bytes viewable by html.Img
         """
-        camera_data = self.data[locID]['rgbImagePath']
-        ir_data = self.data[locID]['irImagePath']
+        camera_data = self.data[locID]['irData']
+        ir_data = self.data[locID]['rgbData']
         size = self.data[locID]['size']
         lat = self.data[locID]['lat']
         lon = self.data[locID]['lon']
@@ -105,11 +105,8 @@ class app_frontEnd():
 
         metadata_string = f"Metadata: Lat:{lat}, Lon:{lon}, Size of fire:{size}, Date & Time of Image: {date_time}"
 
-        ir_bytes = base64.b64decode(ir_data)
-        camera_bytes = base64.b64decode(camera_data.encode("utf8"))
-
-        ir_url = f"data:image/png;base64,{bytearray(ir_bytes)}"
-        camera_url = f"data:image/png;base64, {bytearray(camera_bytes)}"
+        ir_url = f"data:image/png;base64, " + ir_data
+        camera_url = f"data:image/png;base64, " + camera_data
 
         return camera_url, ir_url, metadata_string
         

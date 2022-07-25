@@ -7,7 +7,7 @@ import numpy as np
 import io
 import socket
 import time
-import asyncio
+#import asyncio
 
 DEBUG = False
 
@@ -24,7 +24,8 @@ class DataCollector:
     def __init__(self):
         # Load GPS coordinates from mission planner.
         if not DEBUG:
-            self.gps_path = "../path_planning/path_test.waypoints"
+            #self.gps_path = "../path_planning/path_test.waypoints"
+            self.gps_path = "../path_planning/home_testing.waypoints"
         else:
             self.gps_path = "..\path_planning\path_test.waypoints"
         
@@ -33,7 +34,7 @@ class DataCollector:
 
         self.server_addr = "127.0.0.1"
         if not DEBUG:
-            self.server_addr = "192.168.10.43"
+            self.server_addr = "192.168.10.33"
             # Serial port on rpi
             connection_string = '/dev/ttyAMA0'
             self.drone = connect(connection_string, wait_ready=True, baud=57600)
@@ -128,7 +129,7 @@ class DataCollector:
                 target_coord = self.gps_coordinates[gps_id]
             
             # Check to see if current position is within range of next waypoint
-            if abs(curr_coord[0] - target_coord[0]) < 1.5 and abs(curr_coord[1] - target_coord[1]) < 1.5:
+            if abs(curr_coord[0] - target_coord[0]) < 0.0001 and abs(curr_coord[1] - target_coord[1]) < 0.0001:
                 try:
                     curr_time = np.array([datetime.now()])
                     

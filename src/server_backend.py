@@ -49,6 +49,10 @@ def getAllImages():
     params = [lastFlightNum]
     data = read_query(sqlConn, query, params, as_json=True)
 
+    if data == None:
+        print("INSUFFICIENT DATA AVAILABLE IN DATABASE")
+        return -1
+
     # convert image paths to actual byte data
     for i, record in enumerate(data):
         irPath = record.pop("irImagePath")
